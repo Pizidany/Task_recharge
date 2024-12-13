@@ -58,8 +58,8 @@ function [] = torque (Power_reg, ax_request, v_i, v_f, mass, r, ax_max)
     figure("Name","Torque Front & Rear", "NumberTitle","off"), clf
     hold on
     grid on
-    plot(t, Torque_front)
-    plot(t, Torque_rear)
+    plot(t, abs(Torque_front))
+    plot(t, abs(Torque_rear))
     ylabel('Torque [Nm]')
     xlabel('Time [s]')
     legend('Torque Front', 'Torque Rear', 'location', 'east')
@@ -92,9 +92,9 @@ Load_T = zeros(n, 1);
 %Con un valore compreso tra [-19.62, -4.00]
 ax_request = -10.64;
 
-for j = 1 : n_gear
-    current_gear = gear_box(j);
-end
+%for j = 1 : n_gear
+%    current_gear = gear_box(j);
+%end
 
 for i = 1 : n
     acc = ax(i);
