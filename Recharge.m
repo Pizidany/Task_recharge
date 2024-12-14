@@ -16,15 +16,9 @@ function [omega] = angular_speed (ax, v_i, v_f, r)
 end
 
 function [Power_diss] = Power_diss (v_i, v_f, ax, Power_reg, mass, r)
-
-    omega = angular_speed(ax, v_i, v_f, r);
-
-    Torque = (mass) * ax * r;
-    %mu = F / (mass * g);
-    Torque_rig = Power_reg ./ omega;
-    Torque_diss = Torque - Torque_rig;
-    Torque_diss(Torque_diss > 0 ) = 0;
-    Power_diss = omega .* Torque_diss;
+    
+    Power_diss = (mass * ax * r .* angular_speed(ax, v_i, v_f, r)) - Power_reg;
+    Power_diss(Power_diss > 0) = 0;
 
 end
 
@@ -41,34 +35,17 @@ function [Load_transfer] = load_transfer (ax, ax_max)
 
 end
 
-function [] = torque (Power_reg, ax_request, v_i, v_f, mass, r, ax_max)
+function [Torque] = torque (Power_reg, ax_request, v_i, v_f, mass, r)
 
-    T = (v_f - v_i) / ax_request;
-    t = 0 : 1e-3 : T;
+    Power_tot = Power_reg + Power_diss(v_i, v_f, ax_request, Power_reg, mass, r);
 
-    Power_tot = Power_reg + Power_diss(v_i, v_f, ax_request, mass, Power_reg, r);
-
-    omega = angular_speed (ax_request, v_i, v_f, r);
-
-    Torque = Power_tot ./ omega;
-
-    Torque_front = (0.5 + load_transfer(ax_request, ax_max)) * Torque;
-    Torque_rear = (0.5 - load_transfer(ax_request, ax_max)) * Torque;
-
-    figure("Name","Torque Front & Rear", "NumberTitle","off"), clf
-    hold on
-    grid on
-    plot(t, abs(Torque_front))
-    plot(t, abs(Torque_rear))
-    ylabel('Torque [Nm]')
-    xlabel('Time [s]')
-    legend('Torque Front', 'Torque Rear', 'location', 'east')
+    Torque = Power_tot ./ angular_speed (ax_request, v_i, v_f, r);
 
 end
 
 
 %Dati iniziali
-g = 9.81;
+g = 9.8;
 v_i = 80 / 3.6;
 v_f = 30 / 3.6;
 
@@ -82,7 +59,7 @@ n_gear = length(gear_box);
 
 ax_min = Power_reg / (v_i * mass);
 ax_max = -2 * g;
-ax =  ax_min : -0.01 : ax_max;
+ax =  ax_max : 0.1 : ax_min;
 
 n = length(ax);
 Eff = zeros(n, 1);
@@ -90,32 +67,47 @@ Load_T = zeros(n, 1);
 
 %Specificare di quale accelerazione si vuole il grafico della coppia
 %Con un valore compreso tra [-19.62, -4.00]
-ax_request = -10.64;
+ax_request = -15;
 
 %for j = 1 : n_gear
 %    current_gear = gear_box(j);
 %end
 
 for i = 1 : n
-    acc = ax(i);
-    Eff(i) = mean(Efficiency(v_i, v_f, acc, Power_reg, mass, r));
-    Load_T(i) = load_transfer (acc, ax_max);
+    Eff(i) = mean(Efficiency(v_i, v_f, ax(i), Power_reg, mass, r));
+    Load_T(i) = load_transfer (ax(i), ax_max);
 end
 
-    
-    figure ("Name", "Efficiency Vs acceleration", "NumberTitle", "off"), clf
-    hold on
-    grid on
-    
-    yyaxis left
-    plot(abs(ax), Eff, 'b')
-    
-    yyaxis right
-    plot(abs(ax), abs(ax), 'r')
+%Grafico Efficienza-accelerazione
+figure ("Name", "Efficiency Vs acceleration", "NumberTitle", "off"), clf
+hold on
+grid on
 
-torque (Power_reg, ax_request, v_i, v_f, mass, r, ax_max)
+yyaxis left
+plot(abs(ax), Eff, 'b')
 
+yyaxis right
+plot(abs(ax), abs(ax), 'r')
 
+T = (v_f - v_i) / ax_request;
+t = 0 : 1e-3 : T;
+
+Torque_wheel = torque (Power_reg, ax_request, v_i, v_f, mass, r);
+
+Torque_front = (0.5 + load_transfer(ax_request, ax_max)) * Torque_wheel;
+Torque_rear = (0.5 - load_transfer(ax_request, ax_max)) * Torque_wheel;
+
+%Grafico coppia delle ruote
+figure("Name","Torque Front & Rear", "NumberTitle","off"), clf
+hold on
+grid on
+plot(t, abs(Torque_front))
+plot(t, abs(Torque_rear))
+ylabel('Torque [Nm]')
+xlabel('Time [s]')
+legend('Torque Front', 'Torque Rear', 'location', 'east')
+
+%Grafico trasferimenti di carico
 figure("Name", "Load Transfer", "NumberTitle","off"),clf
 hold on
 grid on
