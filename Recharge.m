@@ -45,7 +45,7 @@ end
 
 
 %Dati iniziali
-g = 9.8;
+g = 9.81;
 v_i = 80 / 3.6;
 v_f = 30 / 3.6;
 
@@ -59,7 +59,7 @@ n_gear = length(gear_box);
 
 ax_min = Power_reg / (v_i * mass);
 ax_max = -2 * g;
-ax =  ax_max : 0.1 : ax_min;
+ax =  ax_min : -0.01 : ax_max;
 
 n = length(ax);
 Eff = zeros(n, 1);
@@ -67,7 +67,7 @@ Load_T = zeros(n, 1);
 
 %Specificare di quale accelerazione si vuole il grafico della coppia
 %Con un valore compreso tra [-19.62, -4.00]
-ax_request = -15;
+ax_request = -10.64;
 
 %for j = 1 : n_gear
 %    current_gear = gear_box(j);
