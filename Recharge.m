@@ -22,24 +22,27 @@ function [Power_diss] = Power_diss (v_i, v_f, ax, Power_reg, mass, r)
 
 end
 
-function [Eff] = Efficiency (v_i, v_f, ax, Power_reg, mass, r)
+function [Eff] = Efficiency (v_i, v_f, ax, Power_reg, mass, r, gear, Torque_max)
 
-    Eff = Power_reg ./ (Power_reg + Power_diss(v_i, v_f, ax, Power_reg, mass, r));
+    Power_tot = Power_reg + Power_diss(v_i, v_f, ax, Power_reg, mass, r);
+    
+    threshold = Torque_max * gear .* angular_speed(ax, v_i, v_f, r);
+    Power_tot(Power_tot > threshold) = threshold(Power_tot > threshold);
+
+    Eff = Power_reg ./ Power_tot;
 
 end
 
-function [Load_transfer] = load_transfer (ax, ax_max)
+function [Load_transfer] = Load_transfer (ax, ax_max)
 
     k = 0.35 / ax_max; %costante per calcolare i trasferimenti di carico
     Load_transfer = k * ax;
 
 end
 
-function [Torque] = torque (Power_reg, ax_request, v_i, v_f, mass, r)
+function [Torque] = Torque (Power_reg, ax, v_i, v_f, r)
 
-    Power_tot = Power_reg + Power_diss(v_i, v_f, ax_request, Power_reg, mass, r);
-
-    Torque = Power_tot ./ angular_speed (ax_request, v_i, v_f, r);
+    Torque = Power_reg ./ angular_speed (ax, v_i, v_f, r);
 
 end
 
@@ -69,33 +72,31 @@ Load_T = zeros(n, 1);
 %Con un valore compreso tra [-19.62, -4.00]
 ax_request = -10.64;
 
-%for j = 1 : n_gear
-%    current_gear = gear_box(j);
-%end
+for j = 1 : n_gear
+    for i = 1 : n
+        Eff(i) = mean(Efficiency(v_i, v_f, ax(i), Power_reg, mass, r, gear_box(j), Torque_max));
+        Load_T(i) = Load_transfer (ax(i), ax_max);
+    end
 
-for i = 1 : n
-    Eff(i) = mean(Efficiency(v_i, v_f, ax(i), Power_reg, mass, r));
-    Load_T(i) = load_transfer (ax(i), ax_max);
+    %Grafico Efficienza-accelerazione
+    figure ("Name", "Efficiency Vs acceleration", "NumberTitle", "off"), clf
+    hold on
+    grid on
+    title('Current gear', gear_box(j))
+    yyaxis left
+    plot(abs(ax), Eff, 'b')
+
+    yyaxis right
+    plot(abs(ax), abs(ax), 'r')
 end
-
-%Grafico Efficienza-accelerazione
-figure ("Name", "Efficiency Vs acceleration", "NumberTitle", "off"), clf
-hold on
-grid on
-
-yyaxis left
-plot(abs(ax), Eff, 'b')
-
-yyaxis right
-plot(abs(ax), abs(ax), 'r')
 
 T = (v_f - v_i) / ax_request;
 t = 0 : 1e-3 : T;
 
-Torque_wheel = torque (Power_reg, ax_request, v_i, v_f, mass, r);
+Torque_wheel = Torque (Power_reg, ax_request, v_i, v_f, r);
 
-Torque_front = (0.5 + load_transfer(ax_request, ax_max)) * Torque_wheel;
-Torque_rear = (0.5 - load_transfer(ax_request, ax_max)) * Torque_wheel;
+Torque_front = (0.5 + Load_transfer(ax_request, ax_max)) * Torque_wheel;
+Torque_rear = (0.5 - Load_transfer(ax_request, ax_max)) * Torque_wheel;
 
 %Grafico coppia delle ruote
 figure("Name","Torque Front & Rear", "NumberTitle","off"), clf
